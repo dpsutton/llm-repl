@@ -48,7 +48,10 @@ Timings and no silly end of file prompts and such.
 
 ```shell
 ❯ socket-repl-eval -p 6002 "\
-  (load-file \"/Users/dan/projects/clojure/clojure/test/clojure/test_clojure/clojure_set.clj\")\   (in-ns 'clojure.test-clojure.clojure-set)\                                                       (run-tests)"                                                                                   user [69.0ms]=> #'clojure.test-clojure.clojure-set/test-superset?
+  (load-file \"/Users/dan/projects/clojure/clojure/test/clojure/test_clojure/clojure_set.clj\")\
+  (in-ns 'clojure.test-clojure.clojure-set)\
+  (run-tests)"
+user [69.0ms]=> #'clojure.test-clojure.clojure-set/test-superset?
 user [0.5ms]=> #object[clojure.lang.Namespace 0x7e89d7dd "clojure.test-clojure.clojure-set"]
 
 Testing clojure.test-clojure.clojure-set
