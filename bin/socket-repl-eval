@@ -1,0 +1,81 @@
+#!/usr/bin/env bb
+
+(require '[babashka.cli :as cli])
+
+(def cli-spec
+  {:port   {:alias :p :default 6000  :coerce :int    :desc "Socket REPL port"}
+   :host   {:alias :h :default "localhost"            :desc "Host address"}
+   :timeout {:alias :t :default 30   :coerce :int    :desc "Timeout in seconds"}
+   :help   {:coerce :boolean}})
+
+(defn usage []
+  (println "Usage: socket-repl-eval [OPTIONS] CODE")
+  (println)
+  (println "Execute Clojure code against a socket REPL.")
+  (println)
+  (println "OPTIONS:")
+  (println "  -p, --port PORT      Socket REPL port (default: 6000)")
+  (println "  -h, --host HOST      Host address (default: localhost)")
+  (println "  -t, --timeout SECS   Timeout in seconds (default: 30)")
+  (println "  --help               Show this help message")
+  (System/exit 1))
+
+(let [{:keys [opts args]} (cli/parse-args *command-line-args* {:spec cli-spec})
+      {:keys [port host timeout help]} opts
+      code (first args)]
+
+  (when help (usage))
+  (when (or (nil? code) (empty? code))
+    (binding [*out* *err*] (println "Error: No code provided"))
+    (usage))
+
+  (let [sock (try
+               (doto (java.net.Socket.)
+                 (.connect (java.net.InetSocketAddress. ^String host ^int port) 5000))
+               (catch java.net.ConnectException _
+                 (binding [*out* *err*]
+                   (println (str "Error: Could not connect to socket REPL at " host ":" port))
+                   (println "Is the REPL running?"))
+                 (System/exit 1))
+               (catch java.net.SocketTimeoutException _
+                 (binding [*out* *err*]
+                   (println (str "Error: Connection timed out to " host ":" port)))
+                 (System/exit 1)))
+        done   (promise)
+        timer  (future
+                 (when (= ::timeout (deref done (* timeout 1000) ::timeout))
+                   (binding [*out* *err*]
+                     (println (str "Error: Command timed out after " timeout " seconds")))
+                   (.close sock)
+                   (System/exit 124)))]
+
+    ;; Send code, then half-close the write side so the server sees EOF.
+    ;;
+    ;; Why half-close matters:
+    ;; A TCP connection has two independent channels (read and write).
+    ;; The naive approach `echo CODE | nc host port` does a full close —
+    ;; when echo hits EOF, nc calls close() which tears down BOTH sides of
+    ;; the socket at once. The server is still evaluating when this happens,
+    ;; and when it tries to write the result back: "Connection reset by peer".
+    ;;
+    ;; shutdownOutput sends a TCP FIN on the write side only. The server sees
+    ;; EOF on its input, reads all forms, evaluates them, writes results back
+    ;; on the still-open read side, then closes from its end.
+    (let [out (.getOutputStream sock)]
+      (.write out (.getBytes code "UTF-8"))
+      (.flush out))
+    (.shutdownOutput sock)
+
+    ;; Read until the REPL closes its side of the connection
+    (let [in   (.getInputStream sock)
+          buf  (byte-array 4096)
+          baos (java.io.ByteArrayOutputStream.)]
+      (loop []
+        (let [n (.read in buf)]
+          (when (pos? n)
+            (.write baos buf 0 n)
+            (recur))))
+      (.close sock)
+      (deliver done :complete)
+      (print (String. (.toByteArray baos) "UTF-8"))
+      (flush))))

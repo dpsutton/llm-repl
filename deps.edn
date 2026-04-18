@@ -1,0 +1,1 @@
+{:deps {fipp/fipp {:mvn/version "0.6.29"}}}
