@@ -103,3 +103,158 @@ paused.set=> temp/n
 paused.set=> :repl/quit  ;; resume operation by leaving subrepl
 573147844013817084101N
 ```
+
+
+## LLM repl:
+
+Starting the process the same way as before:
+
+```shell
+❯ clj -J"$(socket-repl 6001)" -J"$(llm-repl 6002)" -A:llm-repl
+Clojure 1.12.1
+user=>
+```
+
+
+chat with claude:
+
+```
+❯ i've got a skill at /Users/dan/projects/clojure/llm-repl/readme.md about how to use the socket
+ repl. You've got an llm repl on port 6002. Write a red black tree in clojure, write a few tests
+ using the socket repl, and then show me the api and some examples
+
+⏺ Let me start by reading the skill documentation and understanding the setup.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Now let me check that socket-repl-eval is available and the REPL is running.
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ Bash(socket-repl-eval -p 6002 "(+ 1 1)")
+  ⎿  user [0.8ms]=> 2
+
+⏺ REPL is live. Let me write the red-black tree implementation.
+
+⏺ Write(src/rbtree.clj)
+  ⎿  Wrote 180 lines to src/rbtree.clj
+     (ns rbtree)
+
+     ;; Persistent Red-Black Tree (Okasaki-style)
+     ;; Nodes: [color left key value right]
+     ;; Colors: :red, :black
+     ;; Empty tree: nil
+
+     (defn- color [node] (when node (node 0)))
+     (defn- left  [node] (when node (node 1)))
+     (defn- key-of [node] (when node (node 2)))
+     … +170 lines (ctrl+o to expand)
+
+⏺ Now let me load it into the REPL and run some tests.
+
+⏺ Bash(socket-repl-eval -p 6002 "(load-file \"/private/tmp/sorted/src/rbtree.clj\")")
+  ⎿  user [67.7ms]=> #'rbtree/height
+
+⏺ Loaded. Now let me run tests.
+
+⏺ Bash(socket-repl-eval -p 6002 "(load-file \"/private/tmp/sorted/test/rbtree_test.clj\") (in-ns
+      'rbtree-test) (clojure.test/run-tests)")
+  ⎿  user [63.8ms]=> #'rbtree-test/test-height-bound
+     user [0.3ms]=> #object[clojure.lang.Namespace 0x4cd4cb2f "rbtree-test"]
+     … +5 lines (ctrl+o to expand)
+
+⏺ All 7 tests pass with 24 assertions, 0 failures, 0 errors.
+
+  ---
+  API and Examples
+
+  Here's the rbtree namespace API:
+
+  Core Operations
+
+  ┌───────────────┬────────────────────────────┬─────────────────────────────────────────────┐
+  │   Function    │         Signature          │                 Description                 │
+  ├───────────────┼────────────────────────────┼─────────────────────────────────────────────┤
+  │ insert        │ [tree k v]                 │ Insert/update a key-value pair, returns new │
+  │               │                            │  tree                                       │
+  ├───────────────┼────────────────────────────┼─────────────────────────────────────────────┤
+  │ lookup        │ [tree k] / [tree k         │ Find value by key                           │
+  │               │ not-found]                 │                                             │
+  ├───────────────┼────────────────────────────┼─────────────────────────────────────────────┤
+  │ contains-key? │ [tree k]                   │ Check if key exists                         │
+  ├───────────────┼────────────────────────────┼─────────────────────────────────────────────┤
+  │ size          │ [tree]                     │ Number of entries                           │
+  ├───────────────┼────────────────────────────┼─────────────────────────────────────────────┤
+  │ height        │ [tree]                     │ Tree height                                 │
+  └───────────────┴────────────────────────────┴─────────────────────────────────────────────┘
+
+  Traversal
+
+  ┌──────────────────┬───────────┬──────────────────────────────────┐
+  │     Function     │ Signature │           Description            │
+  ├──────────────────┼───────────┼──────────────────────────────────┤
+  │ tree-seq-ordered │ [tree]    │ Lazy in-order seq of [k v] pairs │
+  ├──────────────────┼───────────┼──────────────────────────────────┤
+  │ keys-seq         │ [tree]    │ In-order seq of keys             │
+  ├──────────────────┼───────────┼──────────────────────────────────┤
+  │ vals-seq         │ [tree]    │ In-order seq of values           │
+  ├──────────────────┼───────────┼──────────────────────────────────┤
+  │ min-key-val      │ [tree]    │ [k v] of minimum key             │
+  ├──────────────────┼───────────┼──────────────────────────────────┤
+  │ max-key-val      │ [tree]    │ [k v] of maximum key             │
+  └──────────────────┴───────────┴──────────────────────────────────┘
+
+  Conversions
+
+  ┌──────────┬───────────┬────────────────────────────┐
+  │ Function │ Signature │        Description         │
+  ├──────────┼───────────┼────────────────────────────┤
+  │ from-map │ [m]       │ Build tree from a map      │
+  ├──────────┼───────────┼────────────────────────────┤
+  │ ->map    │ [tree]    │ Convert tree to sorted-map │
+  └──────────┴───────────┴────────────────────────────┘
+
+  Examples
+
+  ;; Empty tree is nil
+  (def t nil)
+
+  ;; Build up a tree
+  (def t (-> nil
+             (rbtree/insert :cherry 3)
+             (rbtree/insert :apple 1)
+             (rbtree/insert :banana 2)
+             (rbtree/insert :date 4)))
+
+  (rbtree/lookup t :banana)        ;=> 2
+  (rbtree/lookup t :fig :nope)     ;=> :nope
+  (rbtree/contains-key? t :apple)  ;=> true
+  (rbtree/size t)                  ;=> 4
+
+  ;; Sorted traversal
+  (rbtree/keys-seq t)              ;=> (:apple :banana :cherry :date)
+  (rbtree/tree-seq-ordered t)      ;=> ([:apple 1] [:banana 2] [:cherry 3] [:date 4])
+
+  ;; Min/max
+  (rbtree/min-key-val t)           ;=> [:apple 1]
+  (rbtree/max-key-val t)           ;=> [:date 4]
+
+  ;; From/to maps
+  (rbtree/->map t)                 ;=> {:apple 1, :banana 2, :cherry 3, :date 4}
+  (rbtree/from-map {"z" 26 "a" 1 "m" 13})
+
+  ;; Works with any Comparable keys (numbers, strings, keywords...)
+  (def nums (reduce (fn [t i] (rbtree/insert t i (* i i)))
+                    nil (shuffle (range 10))))
+  (rbtree/keys-seq nums)           ;=> (0 1 2 3 4 5 6 7 8 9)
+  (rbtree/lookup nums 7)           ;=> 49
+
+  ;; Height stays logarithmic
+  (rbtree/height (rbtree/from-map (zipmap (range 1000) (range))))  ;=> ~20
+
+  The tree is persistent (purely functional) — every insert returns a new tree, leaving the old
+  one unchanged. Internally it uses Okasaki's balancing approach with nodes represented as
+  vectors [color left key value right].
+
+✻ Crunched for 1m 49s
+```
